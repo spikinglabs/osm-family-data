@@ -1,0 +1,35 @@
+schema_version: 1
+# Family places from OpenStreetMap for Little Outings (spikinglabs/little-outings) and the
+# future spikinglabs events app. `osm-family-data places` and `osm-family-data toilets` write
+# them to R2_PLACES_BUCKET, a public bucket of its own (never the private or events buckets).
+# Data © OpenStreetMap contributors, ODbL: whoever shows the places must credit OpenStreetMap.
+object_key: places/places.jsonl
+toilets_key: places/toilets.jsonl
+# Metres around each town centre; a town's own radius_m overrides it.
+radius_m: 6000
+# Towns the places are gathered around. Keep in sync with little-outings content/regions.
+towns:
+  - {name: Velbert, lat: 51.34, lon: 7.043}
+  - {name: Wuppertal, lat: 51.256, lon: 7.15}
+  - {name: Heiligenhaus, lat: 51.326, lon: 6.971}
+  - {name: Mettmann, lat: 51.25, lon: 6.975}
+  - {name: Haan, lat: 51.193, lon: 7.013}
+  - {name: Ratingen, lat: 51.297, lon: 6.849}
+  # 10 km reaches Kaiserswerth in the north and Benrath with its palace park in the south.
+  - {name: Düsseldorf, lat: 51.227, lon: 6.773, radius_m: 10000}
+  - {name: Köln, lat: 50.938, lon: 6.96}
+  - {name: Bergisch Gladbach, lat: 50.992, lon: 7.129}
+  - {name: Leverkusen, lat: 51.03, lon: 6.984}
+  - {name: Essen, lat: 51.455, lon: 7.011}
+  - {name: Lohmar, lat: 50.839, lon: 7.215}
+  - {name: Bonn, lat: 50.737, lon: 7.098}
+  - {name: Aachen, lat: 50.775, lon: 6.084}
+  - {name: Düren, lat: 50.804, lon: 6.493}
+  # Berlin is a separate area (its own Overpass box), wide enough for most of the city.
+  - {name: Berlin, lat: 52.52, lon: 13.405, radius_m: 15000}
+  # München is a separate area too; 12 km covers the city inside the Mittlerer Ring and beyond.
+  - {name: München, lat: 48.137, lon: 11.575, radius_m: 12000}
+  # Frankfurt is 125 km from Bonn, so its own box; 10 km reaches Höchst, Bergen-Enkheim and Sachsenhausen.
+  - {name: Frankfurt am Main, lat: 50.111, lon: 8.682, radius_m: 10000}
+  # Hamburg too; 14 km reaches Altona, Wandsbek, Bergedorf's edge and Harburg south of the Elbe.
+  - {name: Hamburg, lat: 53.551, lon: 9.993, radius_m: 14000}

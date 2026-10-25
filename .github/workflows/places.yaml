@@ -1,0 +1,82 @@
+# Family places from OpenStreetMap (Overpass + Nominatim) → R2_PLACES_BUCKET/places/places.jsonl,
+# a public bucket of its own. Little Outings downloads that file at build time (PLACES_EXPORT),
+# so its deploys never wait on OpenStreetMap. The first run looks up a street for every place
+# (about 25 minutes at Nominatim's one request a second); later runs only new or moved places.
+name: Places
+
+on:
+  # Public repo, so Actions minutes are free: monthly on the 1st (it was every three
+  # months in cityklub-event-data). A manual run refreshes an area sooner.
+  schedule:
+    - cron: "30 1 1 * *"
+  # Run workflow → tick the areas to refresh; none ticked refreshes all. The others keep
+  # their rows as they are.
+  workflow_dispatch:
+    inputs:
+      rhineland:
+        description: Cologne, Düsseldorf, Bonn, Aachen and the Bergisches Land
+        type: boolean
+        default: false
+      berlin:
+        description: Berlin
+        type: boolean
+        default: false
+      munich:
+        description: Munich
+        type: boolean
+        default: false
+      frankfurt:
+        description: Frankfurt
+        type: boolean
+        default: false
+      hamburg:
+        description: Hamburg
+        type: boolean
+        default: false
+
+concurrency:
+  # Places and Toilets share one group: both ask the same public Overpass servers.
+  group: osm
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  places:
+    runs-on: ubuntu-latest
+    # Five Overpass areas plus up to 2,000 street lookups (~37 minutes) in a city's first run.
+    # Each area is saved as soon as it is done, so hitting this limit only loses the area
+    # still running.
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --no-dev
+      - name: Fetch OpenStreetMap places
+        env:
+          R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_PLACES_BUCKET: ${{ secrets.R2_PLACES_BUCKET }}
+          RHINELAND: ${{ inputs.rhineland }}
+          BERLIN: ${{ inputs.berlin }}
+          MUNICH: ${{ inputs.munich }}
+          FRANKFURT: ${{ inputs.frankfurt }}
+          HAMBURG: ${{ inputs.hamburg }}
+        run: |
+          if [ -z "$R2_PLACES_BUCKET" ]; then
+            echo "::notice::R2_PLACES_BUCKET not set; skipping places."
+            exit 0
+          fi
+          # One town per ticked area; the scheduled run has no inputs and refreshes all.
+          towns=()
+          [ "$RHINELAND" = true ] && towns+=(--town Köln)
+          [ "$BERLIN" = true ] && towns+=(--town Berlin)
+          [ "$MUNICH" = true ] && towns+=(--town München)
+          [ "$FRANKFURT" = true ] && towns+=(--town "Frankfurt am Main")
+          [ "$HAMBURG" = true ] && towns+=(--town Hamburg)
+          out=$(uv run --frozen --no-dev osm-family-data places --storage r2 "${towns[@]}" 2>&1) || { echo "$out"; echo "::error title=Places::$(echo "$out" | tail -1 | cut -c1-600)"; exit 1; }
+          echo "$out"; echo "::notice title=Places::$(echo "$out" | tail -1)"

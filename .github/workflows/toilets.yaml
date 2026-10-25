@@ -1,0 +1,77 @@
+# Public toilets, changing tables and drinking water from OpenStreetMap (Overpass only) →
+# R2_PLACES_BUCKET/places/toilets.jsonl, next to the places. Same towns as config/places.yaml.
+name: Toilets
+
+on:
+  # Monthly on the 15th, half a month after Places so the two never ask Overpass at once.
+  schedule:
+    - cron: "30 1 15 * *"
+  # Run workflow → tick the areas to refresh; none ticked refreshes all. The others keep
+  # their rows as they are.
+  workflow_dispatch:
+    inputs:
+      rhineland:
+        description: Cologne, Düsseldorf, Bonn, Aachen and the Bergisches Land
+        type: boolean
+        default: false
+      berlin:
+        description: Berlin
+        type: boolean
+        default: false
+      munich:
+        description: Munich
+        type: boolean
+        default: false
+      frankfurt:
+        description: Frankfurt
+        type: boolean
+        default: false
+      hamburg:
+        description: Hamburg
+        type: boolean
+        default: false
+
+concurrency:
+  # Places and Toilets share one group: both ask the same public Overpass servers.
+  group: osm
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  toilets:
+    runs-on: ubuntu-latest
+    # Six small Overpass queries per area, a few minutes in all; the limit only catches a hang.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --no-dev
+      - name: Fetch toilets, changing tables and drinking water
+        env:
+          R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_PLACES_BUCKET: ${{ secrets.R2_PLACES_BUCKET }}
+          RHINELAND: ${{ inputs.rhineland }}
+          BERLIN: ${{ inputs.berlin }}
+          MUNICH: ${{ inputs.munich }}
+          FRANKFURT: ${{ inputs.frankfurt }}
+          HAMBURG: ${{ inputs.hamburg }}
+        run: |
+          if [ -z "$R2_PLACES_BUCKET" ]; then
+            echo "::notice::R2_PLACES_BUCKET not set; skipping toilets."
+            exit 0
+          fi
+          # One town per ticked area; the scheduled run has no inputs and refreshes all.
+          towns=()
+          [ "$RHINELAND" = true ] && towns+=(--town Köln)
+          [ "$BERLIN" = true ] && towns+=(--town Berlin)
+          [ "$MUNICH" = true ] && towns+=(--town München)
+          [ "$FRANKFURT" = true ] && towns+=(--town "Frankfurt am Main")
+          [ "$HAMBURG" = true ] && towns+=(--town Hamburg)
+          out=$(uv run --frozen --no-dev osm-family-data toilets --storage r2 "${towns[@]}" 2>&1) || { echo "$out"; echo "::error title=Toilets::$(echo "$out" | tail -1 | cut -c1-600)"; exit 1; }
+          echo "$out"; echo "::notice title=Toilets::$(echo "$out" | tail -1)"
