@@ -23,7 +23,7 @@ time it was written and counts per kind (and per town for toilets).
 One JSON object per line; fields without a value are left out.
 
 **places.jsonl**: `osm` (e.g. `way/123`), `kind` (playground, indoor, park, zoo, farm, pool,
-museum, cafe, fun), `name`, `town`, `lat`, `lon`, and when known `street`, `postcode`, `hours`
+museum, cafe, fun, winter: ice rinks and sledging runs), `name`, `town`, `lat`, `lon`, and when known `street`, `postcode`, `hours`
 (OSM `opening_hours`), `website`, `indoor`, `free`, `facilities` (e.g. `swings`, `toilets`,
 `changing_table`) and `nearby` {`road`, `district`, `postcode`} from Nominatim.
 
