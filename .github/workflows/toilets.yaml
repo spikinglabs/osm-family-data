@@ -42,8 +42,9 @@ permissions:
 jobs:
   toilets:
     runs-on: ubuntu-latest
-    # Six small Overpass queries per area, a few minutes in all; the limit only catches a hang.
-    timeout-minutes: 60
+    # Thirty small Overpass queries (six per area); the first run took 54 minutes because the
+    # public servers are slow and some queries need a retry. Each area is saved as it finishes.
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
