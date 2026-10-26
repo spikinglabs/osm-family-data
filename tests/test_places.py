@@ -37,22 +37,26 @@ def test_kinds_follow_the_most_specific_tag():
     assert kind_of({"amenity": "cafe", "name": "Kindercafé Casino"}) is None
     assert kind_of({"amenity": "cafe", "name": "Café", "kids_area": "yes"}) == "cafe"
     assert kind_of({"leisure": "park", "name": "Rosenplatz", "wikidata": "Q1"}) is None
+    assert kind_of({"leisure": "ice_rink", "name": "Eisstadion"}) == "winter"
+    assert kind_of({"piste:type": "sled", "name": "Rodelbahn"}) == "winter"
 
 
 def test_one_small_query_per_tag_and_area():
     queries = overpass_queries(CONFIG.towns, CONFIG.radius_m)
-    assert len(queries) == 120
+    assert len(queries) == 130
     # The NRW box is padded by its widest town radius (Düsseldorf, 10 km).
     assert queries[0][1].startswith("[out:json][timeout:90][bbox:50.6469,5.9394,51.5451,7.3596];")
     # Berlin is its own box with its own radius, not one box from Aachen to Berlin.
-    assert queries[24][1].startswith(
+    assert queries[26][1].startswith(
         "[out:json][timeout:90][bbox:52.3849,13.1829,52.6551,13.6271];"
     )
     # München too: 500 km from Berlin and NRW, so a third box.
-    assert queries[48][1].startswith("[out:json][timeout:90][bbox:48.0289,11.413,48.2451,11.737];")
+    assert queries[52][1].startswith("[out:json][timeout:90][bbox:48.0289,11.413,48.2451,11.737];")
     # Frankfurt (125 km from Bonn) and Hamburg get boxes of their own as well.
-    assert queries[72][1].startswith("[out:json][timeout:90][bbox:50.0209,8.5415,50.2011,8.8225];")
-    assert queries[96][1].startswith("[out:json][timeout:90][bbox:53.4249,9.7807,53.6771,10.2053];")
+    assert queries[78][1].startswith("[out:json][timeout:90][bbox:50.0209,8.5415,50.2011,8.8225];")
+    assert queries[104][1].startswith(
+        "[out:json][timeout:90][bbox:53.4249,9.7807,53.6771,10.2053];"
+    )
     assert all(query.endswith("out center tags;") for _, query in queries)
 
 

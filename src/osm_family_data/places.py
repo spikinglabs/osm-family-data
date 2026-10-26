@@ -111,6 +111,9 @@ def kind_of(tags: dict[str, str]) -> str | None:
         return "indoor"
     if tags.get("leisure") == "playground":
         return "playground"
+    # Ice rinks and sledging runs: winter outings (Little Outings' "Ice & snow" chip).
+    if tags.get("leisure") == "ice_rink" or tags.get("piste:type") == "sled":
+        return "winter"
     if (
         tags.get("leisure") in {"water_park", "swimming_area"}
         or tags.get("amenity") == "public_bath"
@@ -221,6 +224,8 @@ def overpass_queries(towns: list[Town], radius_m: int) -> list[tuple[str, str]]:
         ("pool", '["leisure"="sports_centre"]["sport"="swimming"]["name"]'),
         ("pool", '["leisure"="swimming_area"]["name"]'),
         ("museum", '["tourism"="museum"]["name"]'),
+        ("winter", '["leisure"="ice_rink"]["name"]'),
+        ("winter", '["piste:type"="sled"]["name"]'),
         # Every named café (kind_of keeps the family ones): a name regex timed out on Overpass.
         ("cafe", '["amenity"="cafe"]["name"]'),
         ("fun", '["tourism"="theme_park"]["name"]'),
