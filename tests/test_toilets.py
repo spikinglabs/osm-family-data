@@ -37,7 +37,7 @@ def test_one_small_query_per_tag_and_area():
     assert len(queries) == 30  # six tags, five areas
     assert queries[0] == (
         "toilets",
-        '[out:json][timeout:90][bbox:50.6469,5.9394,51.5451,7.3596];nwr["amenity"="toilets"];'
+        '[out:json][timeout:90][bbox:50.6379,5.925,51.5541,7.374];nwr["amenity"="toilets"];'
         "out center tags;",
     )
 

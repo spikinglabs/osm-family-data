@@ -3,7 +3,8 @@
 Family places, public toilets, changing tables and drinking water from
 [OpenStreetMap](https://www.openstreetmap.org), around the towns that
 [Little Outings](https://outings.allo.land) covers (Cologne, Düsseldorf, Bonn, Aachen and the
-Bergisches Land, Berlin, Munich, Frankfurt and Hamburg). GitHub Actions in this repo fetch them
+Bergisches Land, Berlin, Munich, Frankfurt and Hamburg), plus places (not toilets) around every
+other German city of 100,000 or more, from Dortmund to Dresden. GitHub Actions in this repo fetch them
 from Overpass and write open JSONL files to a public Cloudflare R2 bucket, so sites and apps only
 download a file and never wait on OpenStreetMap.
 
@@ -43,7 +44,11 @@ uv run pytest
 ```
 
 Towns are in [`config/places.yaml`](config/places.yaml); towns within 100 km of each other share
-one Overpass area (all of NRW is one, each other city is its own). `--town` (repeatable, or the
+one Overpass area (all of NRW is one, each other city is its own). `more_towns` are the
+places-only towns: towns with the same `area` share one box (the Ruhr), the others are one each.
+`--more` refreshes those instead of the main towns, and `--part K/N` only every Nth of them
+(the workflow runs them as six jobs one after another). Boxes overlap, so each place goes to
+the nearest town whose radius reaches it and is in the file once. `--town` (repeatable, or the
 checkboxes on a manual workflow run) refreshes only the areas of those towns and keeps the other
 areas' rows. Each area is saved as soon as it is done.
 

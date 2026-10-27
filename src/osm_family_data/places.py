@@ -78,6 +78,9 @@ class Town(StrictModel):
     lon: float
     # Overrides the config's radius_m, e.g. for a big city like Berlin.
     radius_m: int | None = None
+    # more_towns only: towns with the same area share one Overpass box (the Ruhr); a town
+    # without one is an area of its own.
+    area: str | None = None
 
 
 class PlacesConfig(StrictModel):
@@ -87,6 +90,13 @@ class PlacesConfig(StrictModel):
     toilets_key: str = "places/toilets.jsonl"
     radius_m: int = 6000
     towns: list[Town] = Field(min_length=1)
+    # Places only: towns Little Outings has no events for yet. Their places still go in the same
+    # file; a run refreshes them with --more, apart from the towns above (toilets skip them).
+    more_towns: list[Town] = []
+
+    @property
+    def every_town(self) -> list[Town]:
+        return [*self.towns, *self.more_towns]
 
 
 def load_places_config(path: Path) -> PlacesConfig:
@@ -164,13 +174,23 @@ def areas(towns: list[Town]) -> list[list[Town]]:
     return sorted(groups, key=lambda g: min(towns.index(t) for t in g))
 
 
-def chosen_areas(towns: list[Town], only: Iterable[str] = ()) -> list[list[Town]]:
-    """The areas to refresh: all of them, or those holding one of the named towns."""
+def named_areas(towns: list[Town]) -> list[list[Town]]:
+    """more_towns grouped by their area label, in the order of the config."""
+    groups: dict[str, list[Town]] = {}
+    for town in towns:
+        groups.setdefault(town.area or town.name, []).append(town)
+    return list(groups.values())
+
+
+def chosen_areas(
+    towns: list[Town], only: Iterable[str] = (), more: list[Town] | None = None
+) -> list[list[Town]]:
+    """The areas to refresh: all areas of towns, or those of towns or more holding a named town."""
     wanted = {name.casefold() for name in only}
-    groups = areas(towns)
     if not wanted:
-        return groups
-    known = {t.name.casefold() for t in towns}
+        return areas(towns)
+    groups = areas(towns) + named_areas(more or [])
+    known = {t.name.casefold() for t in [*towns, *(more or [])]}
     unknown = [name for name in only if name.casefold() not in known]
     if unknown:
         raise ValueError(f"not in config/places.yaml: {', '.join(unknown)}")
@@ -184,15 +204,21 @@ def area_label(area: list[Town]) -> str:
 def replace_area(
     places: list[dict[str, Any]], area: list[Town], fresh: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
-    """Every other area's rows as they were, this area's from this run."""
+    """Every other area's rows as they were, this area's from this run.
+
+    Boxes overlap (Neuss lies inside Düsseldorf's), so a fresh row also replaces the same place
+    under another area's town: each place is in the file once, under its nearest town.
+    """
     names = {t.name for t in area}
-    rows = [row for row in places if row["town"] not in names] + fresh
+    ids = {row["osm"] for row in fresh}
+    rows = [row for row in places if row["town"] not in names and row["osm"] not in ids] + fresh
     return sorted(rows, key=lambda r: (r["town"].casefold(), r["kind"], r["name"].casefold()))
 
 
 def bbox(towns: list[Town], radius_m: int) -> tuple[float, float, float, float]:
     """One box around the towns plus their radius; from_osm drops what is not near a town."""
-    pad = max(t.radius_m or radius_m for t in towns) / 111000
+    # One km more than the radius, as from_osm keeps places up to a km past it.
+    pad = (max(t.radius_m or radius_m for t in towns) + 1000) / 111000
     lats, lons = [t.lat for t in towns], [t.lon for t in towns]
     lon_pad = pad / math.cos(math.radians(max(abs(lat) for lat in lats)))
     return (
@@ -285,7 +311,11 @@ def play_features(tags: dict[str, str]) -> list[str]:
 
 
 def from_osm(element: dict[str, Any], towns: list[Town], radius_m: int) -> dict[str, Any] | None:
-    """One Overpass element → one compact place row, or None. Its town is the nearest one."""
+    """One Overpass element → one compact place row, or None.
+
+    Its town is the nearest one whose radius reaches it, so a place both a big city's and a
+    neighbour's radius reach goes to the nearer of the two from either town's area.
+    """
     tags = element.get("tags") or {}
     kind = kind_of(tags)
     center = element.get("center") or {}
@@ -294,11 +324,14 @@ def from_osm(element: dict[str, Any], towns: list[Town], radius_m: int) -> dict[
         return None
     if not isinstance(lon, int | float):
         return None
-    distance, town, radius = min(
-        (km((t.lat, t.lon), (lat, lon)), t.name, t.radius_m or radius_m) for t in towns
-    )
-    if distance > radius / 1000 + 1:
+    reached = [
+        (distance, t.name)
+        for t in towns
+        if (distance := km((t.lat, t.lon), (lat, lon))) <= (t.radius_m or radius_m) / 1000 + 1
+    ]
+    if not reached:
         return None
+    town = min(reached)[1]
     facilities = []
     if tags.get("changing_table") == "yes" or tags.get("diaper") == "yes":
         facilities.append("changing_table")
@@ -397,8 +430,13 @@ def fetch_places(
     client: httpx.Client,
     sleep: Callable[[float], None] = time.sleep,
     servers: Iterable[str] = OVERPASS_SERVERS,
+    everyone: list[Town] | None = None,
 ) -> tuple[list[dict[str, Any]], set[str], int]:
-    """This week's places; a kind whose query failed keeps last week's rows."""
+    """This week's places; a kind whose query failed keeps last week's rows.
+
+    Each place goes to its nearest town among everyone (all configured towns), not only the
+    area's, so a place in two overlapping boxes gets the same town from either run.
+    """
     elements: list[dict[str, Any]] = []
     failed: set[str] = set()
     for kind, query in overpass_queries(config.towns, config.radius_m):
@@ -412,7 +450,7 @@ def fetch_places(
         raise OverpassError("Overpass returned no places; keeping the previous list")
     rows = {row["osm"]: row for row in previous if row["kind"] in failed}
     for element in elements:
-        row = from_osm(element, config.towns, config.radius_m)
+        row = from_osm(element, everyone or config.towns, config.radius_m)
         if row:
             rows[row["osm"]] = row
     places = sorted(

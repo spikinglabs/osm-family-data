@@ -33,3 +33,90 @@ towns:
   - {name: Frankfurt am Main, lat: 50.111, lon: 8.682, radius_m: 10000}
   # Hamburg too; 14 km reaches Altona, Wandsbek, Bergedorf's edge and Harburg south of the Elbe.
   - {name: Hamburg, lat: 53.551, lon: 9.993, radius_m: 14000}
+
+# Places only: towns of 100,000 or more that Little Outings has no events for yet. Their places
+# are on its map and pages, but the town picker keeps to the towns above. Refreshed by the
+# "more towns" jobs of the Places workflow (--more), one area at a time; towns with the same
+# `area` share one Overpass box, a town without one is its own. Toilets keep to the towns above.
+more_towns:
+  # Ruhr: Essen above is already one of ours; a playground nearer Mülheim goes to Mülheim.
+  - {name: Duisburg, lat: 51.435, lon: 6.762, radius_m: 8000, area: Ruhr}
+  - {name: Oberhausen, lat: 51.47, lon: 6.852, area: Ruhr}
+  - {name: Mülheim an der Ruhr, lat: 51.427, lon: 6.883, area: Ruhr}
+  - {name: Bottrop, lat: 51.524, lon: 6.929, area: Ruhr}
+  - {name: Gelsenkirchen, lat: 51.518, lon: 7.086, area: Ruhr}
+  - {name: Herne, lat: 51.538, lon: 7.219, area: Ruhr}
+  - {name: Bochum, lat: 51.482, lon: 7.216, radius_m: 8000, area: Ruhr}
+  - {name: Recklinghausen, lat: 51.614, lon: 7.198, area: Ruhr}
+  - {name: Witten, lat: 51.444, lon: 7.335, area: Ruhr}
+  - {name: Dortmund, lat: 51.514, lon: 7.468, radius_m: 10000, area: Ruhr}
+  - {name: Hagen, lat: 51.367, lon: 7.463, area: Ruhr}
+  - {name: Hamm, lat: 51.681, lon: 7.818, area: Ruhr}
+  - {name: Moers, lat: 51.451, lon: 6.627, area: Ruhr}
+  # Lower Rhine and the rest of the Bergisches Land.
+  - {name: Krefeld, lat: 51.339, lon: 6.586, area: Niederrhein}
+  - {name: Mönchengladbach, lat: 51.185, lon: 6.442, radius_m: 8000, area: Niederrhein}
+  - {name: Neuss, lat: 51.198, lon: 6.691, area: Niederrhein}
+  - {name: Solingen, lat: 51.171, lon: 7.083, area: Niederrhein}
+  - {name: Remscheid, lat: 51.179, lon: 7.189, area: Niederrhein}
+  # Westphalia: far apart, so mostly an area each (a box over the fields between asks for nothing).
+  - {name: Münster, lat: 51.961, lon: 7.626, radius_m: 8000}
+  - {name: Osnabrück, lat: 52.279, lon: 8.047}
+  - {name: Bielefeld, lat: 52.021, lon: 8.532, radius_m: 8000, area: Ostwestfalen}
+  - {name: Gütersloh, lat: 51.906, lon: 8.378, area: Ostwestfalen}
+  - {name: Paderborn, lat: 51.719, lon: 8.755}
+  - {name: Siegen, lat: 50.875, lon: 8.024}
+  # Rhine-Main around Frankfurt, and Rhine-Neckar.
+  - {name: Wiesbaden, lat: 50.082, lon: 8.24, area: Rhein-Main}
+  - {name: Mainz, lat: 49.993, lon: 8.247, area: Rhein-Main}
+  - {name: Darmstadt, lat: 49.873, lon: 8.651, area: Rhein-Main}
+  - {name: Offenbach am Main, lat: 50.096, lon: 8.766, area: Rhein-Main}
+  - {name: Hanau, lat: 50.133, lon: 8.917, area: Rhein-Main}
+  - {name: Mannheim, lat: 49.487, lon: 8.466, radius_m: 8000, area: Rhein-Neckar}
+  - {name: Ludwigshafen am Rhein, lat: 49.477, lon: 8.445, area: Rhein-Neckar}
+  - {name: Heidelberg, lat: 49.399, lon: 8.672, area: Rhein-Neckar}
+  - {name: Kaiserslautern, lat: 49.444, lon: 7.769}
+  - {name: Koblenz, lat: 50.356, lon: 7.594}
+  - {name: Trier, lat: 49.75, lon: 6.637}
+  - {name: Saarbrücken, lat: 49.24, lon: 6.997}
+  # Baden-Württemberg.
+  - {name: Stuttgart, lat: 48.776, lon: 9.183, radius_m: 10000, area: Stuttgart}
+  - {name: Reutlingen, lat: 48.491, lon: 9.205, area: Stuttgart}
+  - {name: Heilbronn, lat: 49.142, lon: 9.219}
+  - {name: Karlsruhe, lat: 49.007, lon: 8.404, radius_m: 8000, area: Karlsruhe}
+  - {name: Pforzheim, lat: 48.892, lon: 8.694, area: Karlsruhe}
+  - {name: Freiburg im Breisgau, lat: 47.999, lon: 7.842}
+  - {name: Ulm, lat: 48.401, lon: 9.988}
+  # Bavaria (München above).
+  - {name: Nürnberg, lat: 49.452, lon: 11.077, radius_m: 10000, area: Nürnberg}
+  - {name: Fürth, lat: 49.477, lon: 10.989, area: Nürnberg}
+  - {name: Erlangen, lat: 49.59, lon: 11.004, area: Nürnberg}
+  - {name: Augsburg, lat: 48.366, lon: 10.898, radius_m: 8000}
+  - {name: Ingolstadt, lat: 48.766, lon: 11.426}
+  - {name: Regensburg, lat: 49.013, lon: 12.102}
+  - {name: Würzburg, lat: 49.791, lon: 9.953}
+  # Hesse, Lower Saxony and the north (Hamburg above).
+  - {name: Kassel, lat: 51.313, lon: 9.48}
+  - {name: Göttingen, lat: 51.541, lon: 9.916}
+  - {name: Hannover, lat: 52.375, lon: 9.732, radius_m: 10000, area: Hannover}
+  - {name: Hildesheim, lat: 52.155, lon: 9.951, area: Hannover}
+  - {name: Braunschweig, lat: 52.269, lon: 10.521, radius_m: 8000, area: Braunschweig}
+  - {name: Wolfsburg, lat: 52.423, lon: 10.787, area: Braunschweig}
+  - {name: Salzgitter, lat: 52.153, lon: 10.333, area: Braunschweig}
+  - {name: Bremen, lat: 53.079, lon: 8.802, radius_m: 10000}
+  - {name: Bremerhaven, lat: 53.54, lon: 8.581}
+  - {name: Oldenburg, lat: 53.144, lon: 8.214}
+  - {name: Kiel, lat: 54.323, lon: 10.123, radius_m: 8000}
+  - {name: Lübeck, lat: 53.866, lon: 10.687}
+  - {name: Rostock, lat: 54.092, lon: 12.099, radius_m: 8000}
+  - {name: Schwerin, lat: 53.629, lon: 11.414}
+  # The east (Berlin above).
+  - {name: Potsdam, lat: 52.391, lon: 13.065}
+  - {name: Cottbus, lat: 51.757, lon: 14.329}
+  - {name: Magdeburg, lat: 52.121, lon: 11.628, radius_m: 8000}
+  - {name: Leipzig, lat: 51.34, lon: 12.375, radius_m: 10000, area: Leipzig-Halle}
+  - {name: Halle (Saale), lat: 51.483, lon: 11.97, area: Leipzig-Halle}
+  - {name: Dresden, lat: 51.05, lon: 13.738, radius_m: 10000}
+  - {name: Chemnitz, lat: 50.828, lon: 12.921, radius_m: 8000}
+  - {name: Erfurt, lat: 50.978, lon: 11.029, area: Thüringen}
+  - {name: Jena, lat: 50.927, lon: 11.589, area: Thüringen}
