@@ -15,6 +15,7 @@ from osm_family_data.places import (
     from_osm,
     kind_of,
     load_places_config,
+    named_areas,
     overpass_queries,
     read_places,
     replace_area,
@@ -44,18 +45,20 @@ def test_kinds_follow_the_most_specific_tag():
 def test_one_small_query_per_tag_and_area():
     queries = overpass_queries(CONFIG.towns, CONFIG.radius_m)
     assert len(queries) == 130
-    # The NRW box is padded by its widest town radius (Düsseldorf, 10 km).
-    assert queries[0][1].startswith("[out:json][timeout:90][bbox:50.6469,5.9394,51.5451,7.3596];")
+    # The NRW box is padded by its widest town radius (Düsseldorf, 10 km) plus 1 km.
+    assert queries[0][1].startswith("[out:json][timeout:90][bbox:50.6379,5.925,51.5541,7.374];")
     # Berlin is its own box with its own radius, not one box from Aachen to Berlin.
     assert queries[26][1].startswith(
-        "[out:json][timeout:90][bbox:52.3849,13.1829,52.6551,13.6271];"
+        "[out:json][timeout:90][bbox:52.3759,13.1681,52.6641,13.6419];"
     )
     # München too: 500 km from Berlin and NRW, so a third box.
-    assert queries[52][1].startswith("[out:json][timeout:90][bbox:48.0289,11.413,48.2451,11.737];")
+    assert queries[52][1].startswith(
+        "[out:json][timeout:90][bbox:48.0199,11.3995,48.2541,11.7505];"
+    )
     # Frankfurt (125 km from Bonn) and Hamburg get boxes of their own as well.
-    assert queries[78][1].startswith("[out:json][timeout:90][bbox:50.0209,8.5415,50.2011,8.8225];")
+    assert queries[78][1].startswith("[out:json][timeout:90][bbox:50.0119,8.5275,50.2101,8.8365];")
     assert queries[104][1].startswith(
-        "[out:json][timeout:90][bbox:53.4249,9.7807,53.6771,10.2053];"
+        "[out:json][timeout:90][bbox:53.4159,9.7655,53.6861,10.2205];"
     )
     assert all(query.endswith("out center tags;") for _, query in queries)
 
@@ -210,3 +213,42 @@ def test_an_unknown_town_is_refused_before_any_fetch(tmp_path):
     result = CliRunner().invoke(app, ["places", "--town", "Atlantis"])
     assert result.exit_code != 0
     assert "Atlantis" in result.output
+
+
+def test_places_only_towns_are_areas_of_their_own():
+    groups = named_areas(CONFIG.more_towns)
+    ruhr = next(g for g in groups if g[0].area == "Ruhr")
+    assert {"Dortmund", "Bochum", "Duisburg"} <= {t.name for t in ruhr}
+    assert [t.name for t in next(g for g in groups if g[0].name == "Dresden")] == ["Dresden"]
+    # Not part of a plain run of the main towns, but --town finds them.
+    assert all(t.name != "Dortmund" for area in chosen_areas(CONFIG.towns) for t in area)
+    found = chosen_areas(CONFIG.towns, ["dortmund"], CONFIG.more_towns)
+    assert [area[0].area for area in found] == ["Ruhr"]
+    names = [t.name for t in CONFIG.every_town]
+    assert len(names) == len(set(names))
+
+
+def test_a_place_goes_to_the_nearest_town_whose_radius_reaches_it():
+    def playground(lat, lon):
+        tags = {"leisure": "playground", "name": "Spielplatz"}
+        return {"type": "node", "id": 1, "lat": lat, "lon": lon, "tags": tags}
+
+    everyone = CONFIG.every_town
+    # Nearer Neuss's centre than Düsseldorf's: Neuss.
+    assert from_osm(playground(51.2, 6.70), everyone, CONFIG.radius_m)["town"] == "Neuss"
+    # Nearer Neuss too, but past Neuss's 6 km and inside Düsseldorf's 10 km: Düsseldorf.
+    far_west = playground(51.29, 6.72)
+    assert from_osm(far_west, everyone, CONFIG.radius_m)["town"] == "Düsseldorf"
+
+
+def test_a_place_is_in_the_file_once_when_boxes_overlap():
+    niederrhein = chosen_areas(CONFIG.towns, ["Neuss"], CONFIG.more_towns)[0]
+    places = [{"osm": "node/1", "kind": "park", "name": "Park", "town": "Düsseldorf"}]
+    fresh = [{"osm": "node/1", "kind": "park", "name": "Park", "town": "Neuss"}]
+    assert replace_area(places, niederrhein, fresh) == fresh
+
+
+def test_part_splits_the_areas_between_jobs():
+    result = CliRunner().invoke(app, ["places", "--more", "--part", "7/6"])
+    assert result.exit_code != 0
+    assert "K/N" in result.output

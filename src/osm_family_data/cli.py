@@ -15,11 +15,14 @@ from osm_family_data.places import (
     USER_AGENT,
     OverpassError,
     PlacesConfig,
+    Town,
     add_reverse,
     area_label,
+    areas,
     chosen_areas,
     fetch_places,
     load_places_config,
+    named_areas,
     read_places,
     replace_area,
     write_places,
@@ -41,11 +44,22 @@ def _store(storage: str, local_root: Path) -> ObjectStore:
     return R2ObjectStore(bucket)
 
 
-def _areas(settings: PlacesConfig, towns: list[str]):
+def _areas(settings: PlacesConfig, towns: list[str], more: list[Town] | None = None):
     try:
-        return chosen_areas(settings.towns, towns)
+        return chosen_areas(settings.towns, towns, more)
     except ValueError as error:
         raise typer.BadParameter(str(error)) from error
+
+
+def _part(value: str) -> tuple[int, int]:
+    """ "2/6" → (2, 6): the second of six shares of the areas."""
+    try:
+        k, n = (int(x) for x in value.split("/"))
+    except ValueError as error:
+        raise typer.BadParameter("--part is K/N, e.g. 2/6") from error
+    if not 1 <= k <= n:
+        raise typer.BadParameter("--part is K/N with 1 <= K <= N")
+    return k, n
 
 
 @app.command("places")
@@ -55,18 +69,32 @@ def places_command(
     local_root: Annotated[Path, typer.Option("--local-root")] = Path("data"),
     max_lookups: Annotated[int, typer.Option("--max-lookups")] = 2000,
     towns: TownOption = [],  # noqa: B006
+    more: Annotated[
+        bool, typer.Option("--more", help="The places-only areas (more_towns) instead.")
+    ] = False,
+    part: Annotated[
+        str | None, typer.Option("--part", help="K/N: every Nth area from the Kth, one job each.")
+    ] = None,
 ) -> None:
     """Fetch family places from OpenStreetMap into the public places bucket.
 
-    Without --town every area in config/places.yaml is refreshed; with it, only the areas
-    holding those towns, and the rest of the file stays as it was.
+    Without --town the areas of `towns` in config/places.yaml are refreshed (with --more, those
+    of `more_towns`); with it, only the areas holding those towns. The rest of the file stays
+    as it was.
     """
     settings = load_places_config(places_config)
-    chosen = _areas(settings, towns)
+    if towns:
+        chosen = _areas(settings, towns, settings.more_towns)
+    else:
+        chosen = named_areas(settings.more_towns) if more else areas(settings.towns)
+    if part:
+        k, n = _part(part)
+        chosen = chosen[k - 1 :: n]
+    everyone = settings.every_town
     store = _store(storage, local_root)
     places = read_places(store, settings.object_key)
     if not towns:  # a full run also drops towns taken out of the config
-        configured = {t.name for t in settings.towns}
+        configured = {t.name for t in everyone}
         places = [row for row in places if row["town"] in configured]
     updated, broken, spent = [], [], 0
     with httpx.Client(headers={"user-agent": USER_AGENT}, follow_redirects=True) as client:
@@ -78,14 +106,19 @@ def places_command(
             previous = [row for row in places if row["town"] in names]
             try:
                 fresh, failed, elements = fetch_places(
-                    settings.model_copy(update={"towns": area}), previous, client
+                    settings.model_copy(update={"towns": area}),
+                    previous,
+                    client,
+                    everyone=everyone,
                 )
             except OverpassError as error:
                 typer.echo(f"{label}: {error}", err=True)
                 broken.append(label)
                 continue
+            # Streets are reused from the whole file: a place may have been under another
+            # area's town before (Neuss's playgrounds were Düsseldorf's until Neuss was added).
             looked_up, lookup_failed = add_reverse(
-                fresh, previous, client, max(0, max_lookups - spent)
+                fresh, places, client, max(0, max_lookups - spent)
             )
             spent += looked_up + lookup_failed
             places = replace_area(places, area, fresh)
