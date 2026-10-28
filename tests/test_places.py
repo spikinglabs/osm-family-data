@@ -238,7 +238,7 @@ def test_an_unknown_town_is_refused_before_any_fetch(tmp_path):
 def test_places_only_towns_are_areas_of_their_own():
     groups = named_areas(CONFIG.more_towns)
     ruhr = next(g for g in groups if g[0].area == "Ruhr")
-    assert {"Dortmund", "Duisburg", "Duisburg"} <= {t.name for t in ruhr}
+    assert {"Dortmund", "Bochum", "Duisburg"} <= {t.name for t in ruhr}
     assert [t.name for t in next(g for g in groups if g[0].name == "Dresden")] == ["Dresden"]
     # Not part of a plain run of the main towns, but --town finds them.
     assert all(t.name != "Dortmund" for area in chosen_areas(CONFIG.towns) for t in area)
