@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 from pathlib import Path
 
 import httpx
@@ -126,6 +127,23 @@ def test_a_failed_kind_keeps_last_weeks_rows():
     assert failed == {"zoo"}
     assert elements == 5  # the playground query runs once per area (NRW, Berlin, München, …)
     assert [row["osm"] for row in places] == ["node/1", "node/9"]
+
+
+def test_queries_are_spread_over_the_servers():
+    hosts = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        hosts.append(request.url.host)
+        return httpx.Response(200, json={"elements": []})
+
+    servers = ["https://a.test", "https://b.test", "https://c.test"]
+    with (
+        httpx.Client(transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(OverpassError, match="no places"),
+    ):
+        fetch_places(CONFIG, [], client, sleep=NO_SLEEP, servers=servers)
+    assert len(hosts) == 130
+    assert Counter(hosts) == {"a.test": 44, "b.test": 43, "c.test": 43}
 
 
 def test_no_places_at_all_keeps_the_previous_file():

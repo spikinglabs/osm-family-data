@@ -93,6 +93,7 @@ jobs:
   # another (each has its own time limit, and Nominatim takes one request a second from all of
   # us together). Each job reads the file the one before wrote. The first month looks up streets
   # for some 9,000 new places, 2,000 per job; places without one yet show without a district.
+  # Queries go to the three Overpass servers at once; one at a time, part 1 ran out of time.
   more-towns:
     needs: places
     if: ${{ !cancelled() && (github.event_name == 'schedule' || inputs.more_towns) }}
@@ -116,10 +117,15 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_PLACES_BUCKET: ${{ secrets.R2_PLACES_BUCKET }}
           PART: ${{ matrix.part }}/6
+          PYTHONUNBUFFERED: "1"
         run: |
           if [ -z "$R2_PLACES_BUCKET" ]; then
             echo "::notice::R2_PLACES_BUCKET not set; skipping places."
             exit 0
           fi
-          out=$(uv run --frozen --no-dev osm-family-data places --storage r2 --more --part "$PART" 2>&1) || { echo "$out"; echo "::error title=Places $PART::$(echo "$out" | tail -1 | cut -c1-600)"; exit 1; }
-          echo "$out"; echo "::notice title=Places $PART::$(echo "$out" | tail -1)"
+          # tee, not out=$(…): each area's line shows in the log as soon as it is done.
+          set -o pipefail
+          if ! uv run --frozen --no-dev osm-family-data places --storage r2 --more --part "$PART" 2>&1 | tee places.log; then
+            echo "::error title=Places $PART::$(tail -1 places.log | cut -c1-600)"; exit 1
+          fi
+          echo "::notice title=Places $PART::$(tail -1 places.log)"

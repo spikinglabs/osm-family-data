@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 from collections import Counter
 from pathlib import Path
 from typing import Annotated
@@ -102,6 +103,7 @@ def places_command(
         # its own update, and the other areas keep what they had.
         for area in chosen:
             label = area_label(area)
+            started = time.monotonic()
             names = {t.name for t in area}
             previous = [row for row in places if row["town"] in names]
             try:
@@ -134,7 +136,7 @@ def places_command(
                 f"{label}: {elements} elements, {len(fresh)} places ({kinds}){kept}; streets: "
                 f"{looked_up} looked up, {lookup_failed} failed, {missing} still without"
             )
-            typer.echo(line)
+            typer.echo(f"{line} ({(time.monotonic() - started) / 60:.0f} min)")
             updated.append(label)
     done = f"places: {len(places)} in all; updated {', '.join(updated) or 'nothing'}"
     if broken:

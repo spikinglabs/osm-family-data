@@ -19,6 +19,7 @@ import re
 import time
 from collections import Counter
 from collections.abc import Callable, Iterable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -437,15 +438,31 @@ def fetch_places(
     Each place goes to its nearest town among everyone (all configured towns), not only the
     area's, so a place in two overlapping boxes gets the same town from either run.
     """
+    servers = list(servers)
+
+    def run(job: tuple[int, tuple[str, str]]) -> tuple[str, list[dict[str, Any]] | OverpassError]:
+        # One query per server at a time, each starting on another one: a query takes the
+        # public servers about a minute, so asking them one after another took 40 minutes an
+        # area and more than a job's time limit for six or seven areas.
+        i, (kind, query) = job
+        mine = servers[i % len(servers) :] + servers[: i % len(servers)]
+        try:
+            return kind, overpass(client, query, mine, sleep)
+        except OverpassError as error:
+            return kind, error
+        finally:
+            sleep(2)
+
     elements: list[dict[str, Any]] = []
     failed: set[str] = set()
-    for kind, query in overpass_queries(config.towns, config.radius_m):
-        try:
-            elements.extend(overpass(client, query, servers, sleep))
-        except OverpassError as error:
-            failed.add(kind)
-            print(error)
-        sleep(2)
+    jobs = list(enumerate(overpass_queries(config.towns, config.radius_m)))
+    with ThreadPoolExecutor(max_workers=len(servers)) as pool:
+        for kind, result in pool.map(run, jobs):
+            if isinstance(result, OverpassError):
+                failed.add(kind)
+                print(result, flush=True)
+            else:
+                elements.extend(result)
     if not elements:
         raise OverpassError("Overpass returned no places; keeping the previous list")
     rows = {row["osm"]: row for row in previous if row["kind"] in failed}
