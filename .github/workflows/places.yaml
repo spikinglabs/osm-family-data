@@ -34,7 +34,7 @@ on:
         type: boolean
         default: false
       more_towns:
-        description: The places-only towns (Dortmund, Leipzig, Stuttgart … more_towns), in six jobs
+        description: The places-only towns (Dortmund, Leipzig, Stuttgart … more_towns), one job per area; areas done in the last 20 days are skipped
         type: boolean
         default: false
 
@@ -89,37 +89,60 @@ jobs:
           out=$(uv run --frozen --no-dev osm-family-data places --storage r2 "${towns[@]}" 2>&1) || { echo "$out"; echo "::error title=Places::$(echo "$out" | tail -1 | cut -c1-600)"; exit 1; }
           echo "$out"; echo "::notice title=Places::$(echo "$out" | tail -1)"
 
-  # The places-only towns (more_towns): about 40 areas, split into six jobs that run one after
-  # another (each has its own time limit, and Nominatim takes one request a second from all of
-  # us together). Each job reads the file the one before wrote. The first month looks up streets
-  # for some 9,000 new places, 2,000 per job; places without one yet show without a district.
-  more-towns:
+  # The places-only towns (more_towns): about 40 areas, one job each, run one after another
+  # (each has its own time limit, and Nominatim takes one request a second from all of us
+  # together). Each job reads the file the one before wrote. An area fetched in the last 20
+  # days is skipped, so a run started again after a timeout or a failure carries on where it
+  # stopped. Queries go to the three Overpass servers at once.
+  more-areas:
     needs: places
     if: ${{ !cancelled() && (github.event_name == 'schedule' || inputs.more_towns) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 340
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix:
-        part: [1, 2, 3, 4, 5, 6]
+    outputs:
+      areas: ${{ steps.list.outputs.areas }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
       - run: uv sync --frozen --no-dev
-      - name: Fetch OpenStreetMap places, part ${{ matrix.part }} of 6
+      - id: list
+        run: echo "areas=$(uv run --frozen --no-dev osm-family-data areas)" >> "$GITHUB_OUTPUT"
+
+  more-towns:
+    needs: more-areas
+    if: ${{ !cancelled() && needs.more-areas.result == 'success' }}
+    name: more-towns (${{ matrix.area.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        area: ${{ fromJSON(needs.more-areas.outputs.areas) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --no-dev
+      - name: Fetch OpenStreetMap places, ${{ matrix.area.name }}
         env:
           R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_PLACES_BUCKET: ${{ secrets.R2_PLACES_BUCKET }}
-          PART: ${{ matrix.part }}/6
+          PART: ${{ matrix.area.n }}/${{ matrix.area.of }}
+          AREA: ${{ matrix.area.name }}
+          PYTHONUNBUFFERED: "1"
         run: |
           if [ -z "$R2_PLACES_BUCKET" ]; then
             echo "::notice::R2_PLACES_BUCKET not set; skipping places."
             exit 0
           fi
-          out=$(uv run --frozen --no-dev osm-family-data places --storage r2 --more --part "$PART" 2>&1) || { echo "$out"; echo "::error title=Places $PART::$(echo "$out" | tail -1 | cut -c1-600)"; exit 1; }
-          echo "$out"; echo "::notice title=Places $PART::$(echo "$out" | tail -1)"
+          # tee, not out=$(…): the log shows each step as it happens.
+          set -o pipefail
+          if ! uv run --frozen --no-dev osm-family-data places --storage r2 --more --part "$PART" --skip-days 20 2>&1 | tee places.log; then
+            echo "::error title=Places $AREA::$(tail -1 places.log | cut -c1-600)"; exit 1
+          fi
+          echo "::notice title=Places $AREA::$(tail -1 places.log)"

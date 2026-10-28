@@ -1,4 +1,6 @@
 import json
+from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -18,6 +20,7 @@ from osm_family_data.places import (
     named_areas,
     overpass_queries,
     read_places,
+    read_refreshed,
     replace_area,
     reverse_key,
     write_places,
@@ -126,6 +129,23 @@ def test_a_failed_kind_keeps_last_weeks_rows():
     assert failed == {"zoo"}
     assert elements == 5  # the playground query runs once per area (NRW, Berlin, München, …)
     assert [row["osm"] for row in places] == ["node/1", "node/9"]
+
+
+def test_queries_are_spread_over_the_servers():
+    hosts = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        hosts.append(request.url.host)
+        return httpx.Response(200, json={"elements": []})
+
+    servers = ["https://a.test", "https://b.test", "https://c.test"]
+    with (
+        httpx.Client(transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(OverpassError, match="no places"),
+    ):
+        fetch_places(CONFIG, [], client, sleep=NO_SLEEP, servers=servers)
+    assert len(hosts) == 130
+    assert Counter(hosts) == {"a.test": 44, "b.test": 43, "c.test": 43}
 
 
 def test_no_places_at_all_keeps_the_previous_file():
@@ -252,3 +272,23 @@ def test_part_splits_the_areas_between_jobs():
     result = CliRunner().invoke(app, ["places", "--more", "--part", "7/6"])
     assert result.exit_code != 0
     assert "K/N" in result.output
+
+
+def test_a_restarted_run_skips_the_areas_it_already_fetched(tmp_path):
+    store = LocalObjectStore(tmp_path)
+    write_places([], store, "places/places.jsonl", {"Duisburg": datetime.now(UTC).isoformat()})
+    assert read_refreshed(store, "places/places.jsonl").keys() == {"Duisburg"}
+    area = named_areas(load_places_config(Path("config/places.yaml")).more_towns)[0]
+    assert area[0].name == "Duisburg"
+    args = ["places", "--more", "--part", "1/41", "--local-root", str(tmp_path)]
+    result = CliRunner().invoke(app, [*args, "--skip-days", "20"])
+    assert result.exit_code == 0, result.output
+    assert "skipped, fetched" in result.output
+    assert "updated nothing" in result.output
+
+
+def test_the_areas_command_lists_one_job_per_area():
+    result = CliRunner().invoke(app, ["areas"])
+    rows = json.loads(result.output)
+    assert rows[0] == {"n": 1, "of": len(rows), "name": "Ruhr"}
+    assert len(rows) == 41

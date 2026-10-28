@@ -19,6 +19,7 @@ import re
 import time
 from collections import Counter
 from collections.abc import Callable, Iterable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -437,15 +438,31 @@ def fetch_places(
     Each place goes to its nearest town among everyone (all configured towns), not only the
     area's, so a place in two overlapping boxes gets the same town from either run.
     """
+    servers = list(servers)
+
+    def run(job: tuple[int, tuple[str, str]]) -> tuple[str, list[dict[str, Any]] | OverpassError]:
+        # One query per server at a time, each starting on another one: a query takes the
+        # public servers about a minute, so asking them one after another took 40 minutes an
+        # area and more than a job's time limit for six or seven areas.
+        i, (kind, query) = job
+        mine = servers[i % len(servers) :] + servers[: i % len(servers)]
+        try:
+            return kind, overpass(client, query, mine, sleep)
+        except OverpassError as error:
+            return kind, error
+        finally:
+            sleep(2)
+
     elements: list[dict[str, Any]] = []
     failed: set[str] = set()
-    for kind, query in overpass_queries(config.towns, config.radius_m):
-        try:
-            elements.extend(overpass(client, query, servers, sleep))
-        except OverpassError as error:
-            failed.add(kind)
-            print(error)
-        sleep(2)
+    jobs = list(enumerate(overpass_queries(config.towns, config.radius_m)))
+    with ThreadPoolExecutor(max_workers=len(servers)) as pool:
+        for kind, result in pool.map(run, jobs):
+            if isinstance(result, OverpassError):
+                failed.add(kind)
+                print(result, flush=True)
+            else:
+                elements.extend(result)
     if not elements:
         raise OverpassError("Overpass returned no places; keeping the previous list")
     rows = {row["osm"]: row for row in previous if row["kind"] in failed}
@@ -515,7 +532,28 @@ def read_places(store: ObjectStore, key: str) -> list[dict[str, Any]]:
     return [json.loads(line) for line in body.decode().splitlines() if line.strip()]
 
 
-def write_places(places: list[dict[str, Any]], store: ObjectStore, key: str) -> str:
+def manifest_key(key: str) -> str:
+    return key.rsplit(".", 1)[0] + ".json"
+
+
+def read_refreshed(store: ObjectStore, key: str) -> dict[str, str]:
+    """When each area was last fetched (by its first town), from the manifest."""
+    try:
+        return json.loads(store.get(manifest_key(key))).get("refreshed") or {}
+    except FileNotFoundError:
+        return {}
+    except ClientError as error:
+        if error.response.get("Error", {}).get("Code") in {"NoSuchKey", "404"}:
+            return {}
+        raise
+
+
+def write_places(
+    places: list[dict[str, Any]],
+    store: ObjectStore,
+    key: str,
+    refreshed: dict[str, str] | None = None,
+) -> str:
     """The places, one per line, plus a small manifest next to them."""
     body = "".join(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in places)
     store.put(key, body.encode(), "application/x-ndjson")
@@ -527,8 +565,10 @@ def write_places(places: list[dict[str, Any]], store: ObjectStore, key: str) -> 
         "object_key": key,
         "attribution": "© OpenStreetMap contributors, ODbL",
     }
+    if refreshed:
+        manifest["refreshed"] = dict(sorted(refreshed.items()))
     store.put(
-        key.rsplit(".", 1)[0] + ".json",
+        manifest_key(key),
         json.dumps(manifest, ensure_ascii=False, indent=2).encode(),
         "application/json",
     )

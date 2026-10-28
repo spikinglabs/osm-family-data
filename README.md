@@ -47,7 +47,9 @@ Towns are in [`config/places.yaml`](config/places.yaml); towns within 100 km of 
 one Overpass area (all of NRW is one, each other city is its own). `more_towns` are the
 places-only towns: towns with the same `area` share one box (the Ruhr), the others are one each.
 `--more` refreshes those instead of the main towns, and `--part K/N` only every Nth of them
-(the workflow runs them as six jobs one after another). Boxes overlap, so each place goes to
+(the workflow runs one job per area, one after another, from `osm-family-data areas`).
+`--skip-days N` skips areas fetched in the last N days (the manifest's `refreshed`), so a run
+started again after a timeout carries on where it stopped. Boxes overlap, so each place goes to
 the nearest town whose radius reaches it and is in the file once. `--town` (repeatable, or the
 checkboxes on a manual workflow run) refreshes only the areas of those towns and keeps the other
 areas' rows. Each area is saved as soon as it is done.
