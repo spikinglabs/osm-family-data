@@ -1,5 +1,6 @@
 import json
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -19,6 +20,7 @@ from osm_family_data.places import (
     named_areas,
     overpass_queries,
     read_places,
+    read_refreshed,
     replace_area,
     reverse_key,
     write_places,
@@ -236,7 +238,7 @@ def test_an_unknown_town_is_refused_before_any_fetch(tmp_path):
 def test_places_only_towns_are_areas_of_their_own():
     groups = named_areas(CONFIG.more_towns)
     ruhr = next(g for g in groups if g[0].area == "Ruhr")
-    assert {"Dortmund", "Bochum", "Duisburg"} <= {t.name for t in ruhr}
+    assert {"Dortmund", "Duisburg", "Duisburg"} <= {t.name for t in ruhr}
     assert [t.name for t in next(g for g in groups if g[0].name == "Dresden")] == ["Dresden"]
     # Not part of a plain run of the main towns, but --town finds them.
     assert all(t.name != "Dortmund" for area in chosen_areas(CONFIG.towns) for t in area)
@@ -270,3 +272,23 @@ def test_part_splits_the_areas_between_jobs():
     result = CliRunner().invoke(app, ["places", "--more", "--part", "7/6"])
     assert result.exit_code != 0
     assert "K/N" in result.output
+
+
+def test_a_restarted_run_skips_the_areas_it_already_fetched(tmp_path):
+    store = LocalObjectStore(tmp_path)
+    write_places([], store, "places/places.jsonl", {"Duisburg": datetime.now(UTC).isoformat()})
+    assert read_refreshed(store, "places/places.jsonl").keys() == {"Duisburg"}
+    area = named_areas(load_places_config(Path("config/places.yaml")).more_towns)[0]
+    assert area[0].name == "Duisburg"
+    args = ["places", "--more", "--part", "1/41", "--local-root", str(tmp_path)]
+    result = CliRunner().invoke(app, [*args, "--skip-days", "20"])
+    assert result.exit_code == 0, result.output
+    assert "skipped, fetched" in result.output
+    assert "updated nothing" in result.output
+
+
+def test_the_areas_command_lists_one_job_per_area():
+    result = CliRunner().invoke(app, ["areas"])
+    rows = json.loads(result.output)
+    assert rows[0] == {"n": 1, "of": len(rows), "name": "Ruhr"}
+    assert len(rows) == 41

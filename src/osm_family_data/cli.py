@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from collections import Counter
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated
 
@@ -25,6 +27,7 @@ from osm_family_data.places import (
     load_places_config,
     named_areas,
     read_places,
+    read_refreshed,
     replace_area,
     write_places,
 )
@@ -76,6 +79,10 @@ def places_command(
     part: Annotated[
         str | None, typer.Option("--part", help="K/N: every Nth area from the Kth, one job each.")
     ] = None,
+    skip_days: Annotated[
+        int,
+        typer.Option("--skip-days", help="Skip areas fetched fewer than this many days ago."),
+    ] = 0,
 ) -> None:
     """Fetch family places from OpenStreetMap into the public places bucket.
 
@@ -94,6 +101,14 @@ def places_command(
     everyone = settings.every_town
     store = _store(storage, local_root)
     places = read_places(store, settings.object_key)
+    refreshed = read_refreshed(store, settings.object_key)
+    if skip_days:
+        # A run started again after a timeout carries on where it stopped.
+        since = (datetime.now(UTC) - timedelta(days=skip_days)).isoformat()
+        fresh_areas = [a for a in chosen if refreshed.get(a[0].name, "") >= since]
+        for area in fresh_areas:
+            typer.echo(f"{area_label(area)}: skipped, fetched {refreshed[area[0].name][:10]}")
+        chosen = [a for a in chosen if a not in fresh_areas]
     if not towns:  # a full run also drops towns taken out of the config
         configured = {t.name for t in everyone}
         places = [row for row in places if row["town"] in configured]
@@ -124,7 +139,8 @@ def places_command(
             )
             spent += looked_up + lookup_failed
             places = replace_area(places, area, fresh)
-            write_places(places, store, settings.object_key)
+            refreshed[area[0].name] = datetime.now(UTC).isoformat()
+            write_places(places, store, settings.object_key, refreshed)
             kinds = ", ".join(
                 f"{kind} {n}" for kind, n in sorted(Counter(r["kind"] for r in fresh).items())
             )
@@ -143,6 +159,19 @@ def places_command(
         typer.echo(f"{done}; Overpass failed for {', '.join(broken)} (kept their old rows)")
         raise typer.Exit(1)
     typer.echo(f"{done} -> {settings.object_key}")
+
+
+@app.command("areas")
+def areas_command(
+    places_config: Annotated[Path, typer.Option("--places-config")] = CONFIG,
+) -> None:
+    """The more_towns areas as JSON, for the workflow's one-job-per-area matrix."""
+    chosen = named_areas(load_places_config(places_config).more_towns)
+    rows = [
+        {"n": i, "of": len(chosen), "name": area[0].area or area[0].name}
+        for i, area in enumerate(chosen, 1)
+    ]
+    typer.echo(json.dumps(rows, ensure_ascii=False))
 
 
 @app.command("toilets")

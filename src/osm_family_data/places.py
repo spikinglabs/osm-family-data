@@ -532,7 +532,28 @@ def read_places(store: ObjectStore, key: str) -> list[dict[str, Any]]:
     return [json.loads(line) for line in body.decode().splitlines() if line.strip()]
 
 
-def write_places(places: list[dict[str, Any]], store: ObjectStore, key: str) -> str:
+def manifest_key(key: str) -> str:
+    return key.rsplit(".", 1)[0] + ".json"
+
+
+def read_refreshed(store: ObjectStore, key: str) -> dict[str, str]:
+    """When each area was last fetched (by its first town), from the manifest."""
+    try:
+        return json.loads(store.get(manifest_key(key))).get("refreshed") or {}
+    except FileNotFoundError:
+        return {}
+    except ClientError as error:
+        if error.response.get("Error", {}).get("Code") in {"NoSuchKey", "404"}:
+            return {}
+        raise
+
+
+def write_places(
+    places: list[dict[str, Any]],
+    store: ObjectStore,
+    key: str,
+    refreshed: dict[str, str] | None = None,
+) -> str:
     """The places, one per line, plus a small manifest next to them."""
     body = "".join(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in places)
     store.put(key, body.encode(), "application/x-ndjson")
@@ -544,8 +565,10 @@ def write_places(places: list[dict[str, Any]], store: ObjectStore, key: str) -> 
         "object_key": key,
         "attribution": "© OpenStreetMap contributors, ODbL",
     }
+    if refreshed:
+        manifest["refreshed"] = dict(sorted(refreshed.items()))
     store.put(
-        key.rsplit(".", 1)[0] + ".json",
+        manifest_key(key),
         json.dumps(manifest, ensure_ascii=False, indent=2).encode(),
         "application/json",
     )
