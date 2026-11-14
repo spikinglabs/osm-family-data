@@ -89,6 +89,8 @@ class PlacesConfig(StrictModel):
     object_key: str = "places/places.jsonl"
     # Toilets, changing tables and drinking water around the same towns (toilets.py).
     toilets_key: str = "places/toilets.jsonl"
+    # Car parks around the same towns (parking.py).
+    parking_key: str = "places/parking.jsonl"
     radius_m: int = 6000
     towns: list[Town] = Field(min_length=1)
     # Places only: towns Little Outings has no events for yet. Their places still go in the same

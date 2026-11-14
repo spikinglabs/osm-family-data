@@ -1,4 +1,4 @@
-"""`osm-family-data places` and `osm-family-data toilets`: one area at a time, saved as it goes."""
+"""`osm-family-data places`, `toilets` and `parking`: one area at a time, saved as it goes."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from typing import Annotated
 import httpx
 import typer
 
+from osm_family_data import parking as parking_data
 from osm_family_data import toilets as toilet_data
 from osm_family_data.places import (
     USER_AGENT,
@@ -219,6 +220,55 @@ def toilets_command(
             )
             updated.append(label)
     done = f"toilets: {len(rows)} in all; updated {', '.join(updated) or 'nothing'}"
+    if broken:
+        typer.echo(f"{done}; Overpass failed for {', '.join(broken)} (kept their old rows)")
+        raise typer.Exit(1)
+    typer.echo(f"{done} -> {key}")
+
+
+@app.command("parking")
+def parking_command(
+    storage: Annotated[str, typer.Option("--storage")] = "local",
+    places_config: Annotated[Path, typer.Option("--places-config")] = CONFIG,
+    local_root: Annotated[Path, typer.Option("--local-root")] = Path("data"),
+    towns: TownOption = [],  # noqa: B006
+) -> None:
+    """Fetch car parks into the public places bucket.
+
+    Same towns and areas as `toilets`; --town refreshes only the areas holding those towns.
+    """
+    settings = load_places_config(places_config)
+    chosen = _areas(settings, towns)
+    store = _store(storage, local_root)
+    key = settings.parking_key
+    rows = read_places(store, key)
+    if not towns:
+        configured = {t.name for t in settings.towns}
+        rows = [row for row in rows if row["town"] in configured]
+    updated, broken = [], []
+    with httpx.Client(headers={"user-agent": USER_AGENT}, follow_redirects=True) as client:
+        for area in chosen:
+            label = area_label(area)
+            names = {t.name for t in area}
+            previous = [row for row in rows if row["town"] in names]
+            try:
+                fresh, failed, elements = parking_data.fetch_parking(
+                    settings.model_copy(update={"towns": area}), previous, client
+                )
+            except OverpassError as error:
+                typer.echo(f"{label}: {error}", err=True)
+                broken.append(label)
+                continue
+            rows = parking_data.replace_area(rows, area, fresh)
+            parking_data.write_parking(rows, store, key)
+            parents = sum(1 for r in fresh if r.get("parent"))
+            kept = f"; {failed} squares failed, kept their last rows" if failed else ""
+            typer.echo(
+                f"{label}: {elements} elements, {len(fresh)} car parks "
+                f"({parents} with parent-and-child spaces){kept}"
+            )
+            updated.append(label)
+    done = f"parking: {len(rows)} in all; updated {', '.join(updated) or 'nothing'}"
     if broken:
         typer.echo(f"{done}; Overpass failed for {', '.join(broken)} (kept their old rows)")
         raise typer.Exit(1)

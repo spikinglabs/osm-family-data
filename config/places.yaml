@@ -1,10 +1,11 @@
 schema_version: 1
 # Family places from OpenStreetMap for Little Outings (spikinglabs/little-outings) and the
-# future spikinglabs events app. `osm-family-data places` and `osm-family-data toilets` write
+# future spikinglabs events app. `osm-family-data places`, `toilets` and `parking` write
 # them to R2_PLACES_BUCKET, a public bucket of its own (never the private or events buckets).
 # Data © OpenStreetMap contributors, ODbL: whoever shows the places must credit OpenStreetMap.
 object_key: places/places.jsonl
 toilets_key: places/toilets.jsonl
+parking_key: places/parking.jsonl
 # Metres around each town centre; a town's own radius_m overrides it.
 radius_m: 6000
 # Towns the places are gathered around. Keep in sync with little-outings content/regions.
