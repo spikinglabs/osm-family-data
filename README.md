@@ -1,6 +1,6 @@
 # osm-family-data
 
-Family places, public toilets, changing tables and drinking water from
+Family places, public toilets, changing tables, drinking water and car parks from
 [OpenStreetMap](https://www.openstreetmap.org), around the towns that
 [Little Outings](https://outings.allo.land) covers (Cologne, Düsseldorf, Bonn, Aachen and the
 Bergisches Land, Berlin, Munich, Frankfurt and Hamburg), plus places (not toilets) around every
@@ -17,9 +17,11 @@ shows it must credit OpenStreetMap. The code is MIT.
 | --- | --- | --- |
 | [`places/places.jsonl`](https://places.allo.land/places/places.jsonl) | Playgrounds, parks, zoos, farms, pools, kids' museums, indoor play, family cafés; with nearest road and district | 1st of every month |
 | [`places/toilets.jsonl`](https://places.allo.land/places/toilets.jsonl) | Public toilets, other spots with a changing table, drinking water | 15th of every month |
+| [`places/parking.jsonl`](https://places.allo.land/places/parking.jsonl) | Car parks a family can drive into: lots, multi-storey and underground garages, park and ride | 22nd of every month |
 
-Next to each file is a small manifest (`places/places.json`, `places/toilets.json`) with the
-time it was written and counts per kind (and per town for toilets).
+Next to each file is a small manifest (`places/places.json`, `places/toilets.json`,
+`places/parking.json`) with the time it was written and counts per kind (and per town for
+toilets and car parks).
 
 One JSON object per line; fields without a value are left out.
 
@@ -34,11 +36,20 @@ changing-table spot is, e.g. `chemist`, `cafe`), `changing_table`, `changing_tab
 (e.g. `wheelchair_toilet`), `wheelchair` (yes, limited, no), `free`, `customers_only`, `hours`,
 `operator`, `website`. Toilets marked private are left out.
 
+**parking.jsonl**: `osm`, `town`, `lat`, `lon`, and when known `name`, `type` (`surface`,
+`multi-storey`, `underground`, `rooftop`), `capacity`, `parent` (parent-and-child spaces: a
+count, or `true`), `disabled` (the same for disabled spaces), `free`, `park_ride`,
+`customers_only`, `maxheight` (metres), `maxstay`, `hours`, `operator`, `website`. Private and
+residents' lots, street-side lanes, laybys, lock-up garages and lots known to hold fewer than
+five cars are left out. A big area's box is asked in squares of at most 0.3 degrees, and a
+square whose query fails keeps its last rows.
+
 ## Running
 
 ```sh
 uv sync
 uv run osm-family-data toilets --town Köln       # writes data/places/toilets.jsonl
+uv run osm-family-data parking --town Köln       # writes data/places/parking.jsonl
 uv run osm-family-data places --town Hamburg     # writes data/places/places.jsonl
 uv run pytest
 ```
