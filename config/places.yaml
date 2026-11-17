@@ -121,3 +121,10 @@ more_towns:
   - {name: Chemnitz, lat: 50.828, lon: 12.921, radius_m: 8000}
   - {name: Erfurt, lat: 50.978, lon: 11.029, area: Thüringen}
   - {name: Jena, lat: 50.927, lon: 11.589, area: Thüringen}
+
+# Places children aren't let into that OpenStreetMap has no min_age for, checked on their own
+# sites. Left out of every run (Little Outings hides them too: content/hidden-places.yaml).
+not_for_children:
+  - node/469326100   # Grugapark Therme, Essen: "Kinder unter 16 Jahren haben keinen Zutritt" (grugaparktherme.de/therme-sauna, 2026-11-17)
+  - way/1018653595   # MediTherme, Bochum: no children under 14 (2026-11-17)
+  - node/500076460   # Kaiser-Friedrich-Therme, Wiesbaden: from 16, textile-free (mattiaqua Badeordnung, 2026-11-17)
