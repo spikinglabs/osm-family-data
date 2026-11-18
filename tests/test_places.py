@@ -131,6 +131,43 @@ def test_a_failed_kind_keeps_last_weeks_rows():
     assert [row["osm"] for row in places] == ["node/1", "node/9"]
 
 
+def test_places_children_cant_enter_are_left_out():
+    # Thermen "ab 16" by OSM's min_age; a lower limit stays and is passed on.
+    therme = {"leisure": "sports_centre", "sport": "swimming", "name": "Therme"}
+    assert kind_of({**therme, "min_age": "16"}) is None
+    assert kind_of({**therme, "min_age": "6"}) == "pool"
+    element = {
+        "type": "way",
+        "id": 3,
+        "center": {"lat": 50.94, "lon": 6.96},
+        "tags": {**therme, "min_age": "6"},
+    }
+    assert from_osm(element, CONFIG.towns, CONFIG.radius_m)["min_age"] == 6
+    # Spas, saunas and hammams by name; a bath that also has a sauna stays.
+    for name in ("Sultan Hamam", "Le Spa München", "Hamam – Wellness & Spa", "Saunapark Nord"):
+        assert kind_of({"amenity": "public_bath", "name": name}) is None, name
+    for name in (
+        "Aquana Sauna & Freizeitbad",
+        "Calypso Bade- & Saunawelt",
+        "Familienbad & Sauna Heepen",
+    ):
+        assert kind_of({"amenity": "public_bath", "name": name}) == "pool", name
+    # Checked by hand where OSM says nothing: Grugapark Therme lets no children in.
+    assert "node/469326100" in CONFIG.not_for_children
+
+
+def test_places_not_for_children_stay_out_of_a_run():
+    config = CONFIG.model_copy(update={"not_for_children": ["node/1", "node/9"]})
+    previous = [
+        {"osm": "node/9", "kind": "zoo", "name": "Zoo", "town": "Köln", "lat": 50.9, "lon": 6.9}
+    ]
+    with overpass_client({"zoo"}) as client:
+        places, _, _ = fetch_places(
+            config, previous, client, sleep=NO_SLEEP, servers=["https://overpass.test"]
+        )
+    assert places == []
+
+
 def test_queries_are_spread_over_the_servers():
     hosts = []
 

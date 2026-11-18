@@ -63,6 +63,12 @@ ANIMALS = ("petting_zoo", "wildlife_park", "safari_park", "enclosure", "birds", 
 # Cafés are only family cafés: a play corner tagged in OSM, or a name that says so.
 FAMILY_CAFE = re.compile(r"kinder|spiele?caf|famil|eltern|baby|kids", re.IGNORECASE)
 NOT_FAMILY = re.compile(r"casino|spielhalle|agentur", re.IGNORECASE)
+# Places children can't go in. Spas, saunas and hammams are tagged as public baths, but only a
+# name that also says bath or pool (Freizeitbad, Badeparadies, Familienbad) is one families use.
+ADULT_SPA = re.compile(r"hamm?am|\bspa\b|wellness|sauna", re.IGNORECASE)
+FAMILY_BATH = re.compile(r"bad|schwimm|freizeit|famil|pool|aqua|kinder|erlebnis", re.IGNORECASE)
+# OSM's min_age at or above this keeps a place out (Thermen "ab 16"); lower ones (ab 6) stay.
+ADULT_AGE = 14
 # OSM tags a playground's equipment on the playground itself as playground:<equipment>=yes.
 EQUIPMENT = {
     "sandpit": ("sandpit",),
@@ -96,6 +102,9 @@ class PlacesConfig(StrictModel):
     # Places only: towns Little Outings has no events for yet. Their places still go in the same
     # file; a run refreshes them with --more, apart from the towns above (toilets skip them).
     more_towns: list[Town] = []
+    # OSM ids of places children aren't let in where OSM doesn't say so (no min_age tag), each
+    # checked on the place's own site; they are left out of every run.
+    not_for_children: list[str] = []
 
     @property
     def every_town(self) -> list[Town]:
@@ -107,9 +116,22 @@ def load_places_config(path: Path) -> PlacesConfig:
         return PlacesConfig.model_validate(yaml.safe_load(handle))
 
 
+def adults_only(tags: dict[str, str]) -> bool:
+    """A place children aren't let into: min_age 14 or more, or a spa, sauna or hammam by name."""
+    try:
+        if float((tags.get("min_age") or "0").split(";")[0]) >= ADULT_AGE:
+            return True
+    except ValueError:
+        pass
+    name = tags.get("name") or ""
+    return bool(ADULT_SPA.search(name)) and not FAMILY_BATH.search(name)
+
+
 def kind_of(tags: dict[str, str]) -> str | None:
     """Which family place an OSM object is, or None. The most specific tag wins."""
     name = tags.get("name") or ""
+    if adults_only(tags):
+        return None
     if tags.get("tourism") in {"zoo", "aquarium"} or tags.get("zoo") in ANIMALS:
         return "zoo"
     if (
@@ -287,6 +309,14 @@ def _url(value: str | None) -> str | None:
     return value.strip() if parts.path else value.strip() + "/"
 
 
+def _age(value: str | None) -> int | None:
+    try:
+        age = int(float((value or "").split(";")[0]))
+    except ValueError:
+        return None
+    return age or None
+
+
 def _yes(value: str | None) -> bool:
     return value is not None and value not in {"no", "0"}
 
@@ -362,6 +392,8 @@ def from_osm(element: dict[str, Any], towns: list[Town], radius_m: int) -> dict[
         "lat": round(lat, 6),
         "lon": round(lon, 6),
         "hours": tags.get("opening_hours"),
+        # A lower age limit (Thermen "ab 6"), for the page to say so.
+        "min_age": _age(tags.get("min_age")),
         "website": _url(tags.get("website") or tags.get("contact:website")),
         "indoor": True if kind in {"indoor", "museum"} or tags.get("indoor") == "yes" else None,
         "free": True
@@ -467,10 +499,14 @@ def fetch_places(
                 elements.extend(result)
     if not elements:
         raise OverpassError("Overpass returned no places; keeping the previous list")
-    rows = {row["osm"]: row for row in previous if row["kind"] in failed}
+    rows = {
+        row["osm"]: row
+        for row in previous
+        if row["kind"] in failed and row["osm"] not in config.not_for_children
+    }
     for element in elements:
         row = from_osm(element, everyone or config.towns, config.radius_m)
-        if row:
+        if row and row["osm"] not in config.not_for_children:
             rows[row["osm"]] = row
     places = sorted(
         rows.values(),

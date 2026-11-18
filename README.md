@@ -28,7 +28,10 @@ One JSON object per line; fields without a value are left out.
 **places.jsonl**: `osm` (e.g. `way/123`), `kind` (playground, indoor, park, zoo, farm, pool,
 museum, cafe, fun, winter: ice rinks and sledging runs), `name`, `town`, `lat`, `lon`, and when known `street`, `postcode`, `hours`
 (OSM `opening_hours`), `website`, `indoor`, `free`, `facilities` (e.g. `swings`, `toilets`,
-`changing_table`) and `nearby` {`road`, `district`, `postcode`} from Nominatim.
+`changing_table`), `min_age` (OSM's lower age limit, e.g. 6 for a Therme) and `nearby` {`road`,
+`district`, `postcode`} from Nominatim. Places children can't go in are left out: OSM `min_age`
+of 14 or more, spas, saunas and hammams by name, and the ids in `not_for_children` in
+`config/places.yaml` (checked on the place's own site where OSM has no age limit).
 
 **toilets.jsonl**: `osm`, `kind` (`toilets`, `changing_table` for a café, shop or office with
 one, `water` for a drinking-water tap), `town`, `lat`, `lon`, and when known `name`, `at` (what a
