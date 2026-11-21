@@ -1,0 +1,296 @@
+{
+  "spec": "dataherb/v2",
+  "id": "osm-family-data",
+  "name": "Family places, toilets and car parks from OpenStreetMap",
+  "description": "Family places, public toilets, changing tables, drinking water and car parks from OpenStreetMap around the towns Little Outings covers (Cologne, Düsseldorf, Bonn, Aachen and the Bergisches Land, Berlin, Munich, Frankfurt, Hamburg), plus places around every other German city of 100,000 or more. Fetched from Overpass by GitHub Actions and published as JSONL on a public bucket.",
+  "tags": [
+    "openstreetmap",
+    "family",
+    "places",
+    "toilets",
+    "parking",
+    "germany",
+    "geo"
+  ],
+  "owner": "spikinglabs",
+  "license": "ODbL-1.0",
+  "attribution": "© OpenStreetMap contributors, ODbL",
+  "classification": "public",
+  "update_frequency": "P1M",
+  "source": "git",
+  "uri": "https://github.com/spikinglabs/osm-family-data",
+  "datapackage": {
+    "licenses": [
+      {
+        "name": "ODbL-1.0",
+        "path": "https://opendatacommons.org/licenses/odbl/",
+        "title": "Open Data Commons Open Database License"
+      }
+    ],
+    "resources": [
+      {
+        "name": "places",
+        "path": "https://places.allo.land/places/places.jsonl",
+        "format": "ndjson",
+        "mediatype": "application/x-ndjson",
+        "description": "Playgrounds, parks, zoos, farms, pools, kids' museums, indoor play and family cafés, with nearest road and district. Refreshed on the 1st of every month.",
+        "schema": {
+          "fields": [
+            {
+              "name": "facilities",
+              "type": "array",
+              "description": "Facilities found on the place (toilets, changing table …)"
+            },
+            {
+              "name": "hours",
+              "type": "string",
+              "description": "opening_hours tag as written in OpenStreetMap"
+            },
+            {
+              "name": "kind",
+              "type": "string",
+              "description": "Kind of place, toilet spot or car park"
+            },
+            {
+              "name": "lat",
+              "type": "number",
+              "description": "Latitude (WGS84)"
+            },
+            {
+              "name": "lon",
+              "type": "number",
+              "description": "Longitude (WGS84)"
+            },
+            {
+              "name": "name",
+              "type": "string",
+              "description": "Name from OpenStreetMap"
+            },
+            {
+              "name": "nearby",
+              "type": "object",
+              "description": "Nearest road and district"
+            },
+            {
+              "name": "osm",
+              "type": "string",
+              "description": "OpenStreetMap object, e.g. node/123"
+            },
+            {
+              "name": "town",
+              "type": "string",
+              "description": "Town the file covers"
+            },
+            {
+              "name": "website",
+              "type": "string",
+              "description": "Website from OpenStreetMap"
+            },
+            {
+              "name": "postcode",
+              "type": "string",
+              "description": "Postcode"
+            },
+            {
+              "name": "street",
+              "type": "string",
+              "description": "Street"
+            },
+            {
+              "name": "indoor",
+              "type": "boolean",
+              "description": "Indoor place"
+            },
+            {
+              "name": "free",
+              "type": "boolean",
+              "description": "Free of charge"
+            }
+          ]
+        }
+      },
+      {
+        "name": "toilets",
+        "path": "https://places.allo.land/places/toilets.jsonl",
+        "format": "ndjson",
+        "mediatype": "application/x-ndjson",
+        "description": "Public toilets, other spots with a changing table, and drinking water. Refreshed on the 15th of every month.",
+        "schema": {
+          "fields": [
+            {
+              "name": "at",
+              "type": "string",
+              "description": "What the spot belongs to (public toilet, café, shop …)"
+            },
+            {
+              "name": "changing_table",
+              "type": "boolean",
+              "description": "Has a changing table"
+            },
+            {
+              "name": "hours",
+              "type": "string",
+              "description": "opening_hours tag as written in OpenStreetMap"
+            },
+            {
+              "name": "kind",
+              "type": "string",
+              "description": "Kind of place, toilet spot or car park"
+            },
+            {
+              "name": "lat",
+              "type": "number",
+              "description": "Latitude (WGS84)"
+            },
+            {
+              "name": "lon",
+              "type": "number",
+              "description": "Longitude (WGS84)"
+            },
+            {
+              "name": "name",
+              "type": "string",
+              "description": "Name from OpenStreetMap"
+            },
+            {
+              "name": "osm",
+              "type": "string",
+              "description": "OpenStreetMap object, e.g. node/123"
+            },
+            {
+              "name": "town",
+              "type": "string",
+              "description": "Town the file covers"
+            },
+            {
+              "name": "website",
+              "type": "string",
+              "description": "Website from OpenStreetMap"
+            },
+            {
+              "name": "wheelchair",
+              "type": "string",
+              "description": "Wheelchair access tag"
+            },
+            {
+              "name": "changing_table_location",
+              "type": "string",
+              "description": "Where the changing table is"
+            },
+            {
+              "name": "operator",
+              "type": "string",
+              "description": "Operator"
+            },
+            {
+              "name": "free",
+              "type": "boolean",
+              "description": "Free of charge"
+            },
+            {
+              "name": "customers_only",
+              "type": "boolean",
+              "description": "Only for customers"
+            }
+          ]
+        }
+      },
+      {
+        "name": "parking",
+        "path": "https://places.allo.land/places/parking.jsonl",
+        "format": "ndjson",
+        "mediatype": "application/x-ndjson",
+        "description": "Car parks a family can drive into: lots, multi-storey and underground garages, park and ride. Refreshed on the 22nd of every month.",
+        "schema": {
+          "fields": [
+            {
+              "name": "customers_only",
+              "type": "boolean",
+              "description": "Only for customers"
+            },
+            {
+              "name": "lat",
+              "type": "number",
+              "description": "Latitude (WGS84)"
+            },
+            {
+              "name": "lon",
+              "type": "number",
+              "description": "Longitude (WGS84)"
+            },
+            {
+              "name": "osm",
+              "type": "string",
+              "description": "OpenStreetMap object, e.g. node/123"
+            },
+            {
+              "name": "town",
+              "type": "string",
+              "description": "Town the file covers"
+            },
+            {
+              "name": "type",
+              "type": "string",
+              "description": "Lot, multi-storey or underground"
+            },
+            {
+              "name": "capacity",
+              "type": "integer",
+              "description": "Parking spaces"
+            },
+            {
+              "name": "free",
+              "type": "boolean",
+              "description": "Free of charge"
+            },
+            {
+              "name": "operator",
+              "type": "string",
+              "description": "Operator"
+            },
+            {
+              "name": "disabled",
+              "type": "integer",
+              "description": "Spaces for disabled drivers"
+            },
+            {
+              "name": "name",
+              "type": "string",
+              "description": "Name from OpenStreetMap"
+            },
+            {
+              "name": "park_ride",
+              "type": "boolean",
+              "description": "Park and ride"
+            },
+            {
+              "name": "maxstay",
+              "type": "string",
+              "description": "Maximum stay tag"
+            },
+            {
+              "name": "hours",
+              "type": "string",
+              "description": "opening_hours tag as written in OpenStreetMap"
+            },
+            {
+              "name": "maxheight",
+              "type": "number",
+              "description": "Maximum vehicle height in metres"
+            },
+            {
+              "name": "website",
+              "type": "string",
+              "description": "Website from OpenStreetMap"
+            },
+            {
+              "name": "parent",
+              "type": "integer",
+              "description": "Id of an enclosing car park"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
