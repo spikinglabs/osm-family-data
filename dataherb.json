@@ -292,5 +292,6 @@
         }
       }
     ]
-  }
+  },
+  "status_job": "osm-places"
 }

@@ -76,3 +76,19 @@ jobs:
           [ "$HAMBURG" = true ] && towns+=(--town Hamburg)
           out=$(uv run --frozen --no-dev osm-family-data toilets --storage r2 "${towns[@]}" 2>&1) || { echo "$out"; echo "::error title=Toilets::$(echo "$out" | tail -1 | cut -c1-600)"; exit 1; }
           echo "$out"; echo "::notice title=Toilets::$(echo "$out" | tail -1)"
+      # Job status for the DataHerb catalog (dataherb.status/v1), served at
+      # https://places.allo.land/_dataherb/status/osm-toilets/latest.json. Never fails the run.
+      - name: Write DataHerb job status
+        if: always()
+        continue-on-error: true
+        uses: DataHerb/dataherb-explorer/.github/actions/emit-status@main
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+        with:
+          target: s3://${{ secrets.R2_PLACES_BUCKET }}/_dataherb/status/
+          job-id: osm-toilets
+          status: ${{ job.status }}
+          expected-interval: P1M
+          datasets: osm-family-data
