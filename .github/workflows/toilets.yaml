@@ -30,6 +30,10 @@ on:
         description: Hamburg
         type: boolean
         default: false
+      stuttgart:
+        description: Stuttgart
+        type: boolean
+        default: false
 
 concurrency:
   # Places and Toilets share one group: both ask the same public Overpass servers.
@@ -62,6 +66,7 @@ jobs:
           MUNICH: ${{ inputs.munich }}
           FRANKFURT: ${{ inputs.frankfurt }}
           HAMBURG: ${{ inputs.hamburg }}
+          STUTTGART: ${{ inputs.stuttgart }}
         run: |
           if [ -z "$R2_PLACES_BUCKET" ]; then
             echo "::notice::R2_PLACES_BUCKET not set; skipping toilets."
@@ -74,5 +79,6 @@ jobs:
           [ "$MUNICH" = true ] && towns+=(--town München)
           [ "$FRANKFURT" = true ] && towns+=(--town "Frankfurt am Main")
           [ "$HAMBURG" = true ] && towns+=(--town Hamburg)
+          [ "$STUTTGART" = true ] && towns+=(--town Stuttgart)
           out=$(uv run --frozen --no-dev osm-family-data toilets --storage r2 "${towns[@]}" 2>&1) || { echo "$out"; echo "::error title=Toilets::$(echo "$out" | tail -1 | cut -c1-600)"; exit 1; }
           echo "$out"; echo "::notice title=Toilets::$(echo "$out" | tail -1)"

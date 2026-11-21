@@ -33,8 +33,12 @@ on:
         description: Hamburg
         type: boolean
         default: false
+      stuttgart:
+        description: Stuttgart
+        type: boolean
+        default: false
       more_towns:
-        description: The places-only towns (Dortmund, Leipzig, Stuttgart … more_towns), one job per area; areas done in the last 20 days are skipped
+        description: The places-only towns (Dortmund, Leipzig, Karlsruhe … more_towns), one job per area; areas done in the last 20 days are skipped
         type: boolean
         default: false
 
@@ -51,7 +55,7 @@ jobs:
     # Skipped on a manual run that ticks only the places-only towns.
     if: >-
       github.event_name == 'schedule' || inputs.rhineland || inputs.berlin || inputs.munich ||
-      inputs.frankfurt || inputs.hamburg || !inputs.more_towns
+      inputs.frankfurt || inputs.hamburg || inputs.stuttgart || !inputs.more_towns
     runs-on: ubuntu-latest
     # Five Overpass areas plus up to 2,000 street lookups (~37 minutes) in a city's first run.
     # Each area is saved as soon as it is done, so hitting this limit only loses the area
@@ -74,6 +78,7 @@ jobs:
           MUNICH: ${{ inputs.munich }}
           FRANKFURT: ${{ inputs.frankfurt }}
           HAMBURG: ${{ inputs.hamburg }}
+          STUTTGART: ${{ inputs.stuttgart }}
         run: |
           if [ -z "$R2_PLACES_BUCKET" ]; then
             echo "::notice::R2_PLACES_BUCKET not set; skipping places."
@@ -86,6 +91,7 @@ jobs:
           [ "$MUNICH" = true ] && towns+=(--town München)
           [ "$FRANKFURT" = true ] && towns+=(--town "Frankfurt am Main")
           [ "$HAMBURG" = true ] && towns+=(--town Hamburg)
+          [ "$STUTTGART" = true ] && towns+=(--town Stuttgart)
           out=$(uv run --frozen --no-dev osm-family-data places --storage r2 "${towns[@]}" 2>&1) || { echo "$out"; echo "::error title=Places::$(echo "$out" | tail -1 | cut -c1-600)"; exit 1; }
           echo "$out"; echo "::notice title=Places::$(echo "$out" | tail -1)"
 
