@@ -47,7 +47,7 @@ def test_kinds_follow_the_most_specific_tag():
 
 def test_one_small_query_per_tag_and_area():
     queries = overpass_queries(CONFIG.towns, CONFIG.radius_m)
-    assert len(queries) == 130
+    assert len(queries) == 156
     # The NRW box is padded by its widest town radius (Düsseldorf, 10 km) plus 1 km.
     assert queries[0][1].startswith("[out:json][timeout:90][bbox:50.6379,5.925,51.5541,7.374];")
     # Berlin is its own box with its own radius, not one box from Aachen to Berlin.
@@ -63,6 +63,8 @@ def test_one_small_query_per_tag_and_area():
     assert queries[104][1].startswith(
         "[out:json][timeout:90][bbox:53.4159,9.7655,53.6861,10.2205];"
     )
+    # Stuttgart is the sixth box.
+    assert queries[130][1].startswith("[out:json][timeout:90][bbox:48.6769,9.0326,48.8751,9.3334];")
     assert all(query.endswith("out center tags;") for _, query in queries)
 
 
@@ -127,7 +129,7 @@ def test_a_failed_kind_keeps_last_weeks_rows():
             CONFIG, previous, client, sleep=NO_SLEEP, servers=["https://overpass.test"]
         )
     assert failed == {"zoo"}
-    assert elements == 5  # the playground query runs once per area (NRW, Berlin, München, …)
+    assert elements == 6  # the playground query runs once per area (NRW, Berlin, München, …)
     assert [row["osm"] for row in places] == ["node/1", "node/9"]
 
 
@@ -181,8 +183,8 @@ def test_queries_are_spread_over_the_servers():
         pytest.raises(OverpassError, match="no places"),
     ):
         fetch_places(CONFIG, [], client, sleep=NO_SLEEP, servers=servers)
-    assert len(hosts) == 130
-    assert Counter(hosts) == {"a.test": 44, "b.test": 43, "c.test": 43}
+    assert len(hosts) == 156
+    assert Counter(hosts) == {"a.test": 52, "b.test": 52, "c.test": 52}
 
 
 def test_no_places_at_all_keeps_the_previous_file():
@@ -249,6 +251,7 @@ def test_a_run_can_refresh_only_some_areas():
         "München",
         "Frankfurt am Main",
         "Hamburg",
+        "Stuttgart",
     ]
     some = chosen_areas(CONFIG.towns, ["hamburg", "Köln"])
     assert [area[0].name for area in some] == ["Velbert", "Hamburg"]

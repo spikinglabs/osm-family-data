@@ -34,6 +34,8 @@ towns:
   - {name: Frankfurt am Main, lat: 50.111, lon: 8.682, radius_m: 10000}
   # Hamburg too; 14 km reaches Altona, Wandsbek, Bergedorf's edge and Harburg south of the Elbe.
   - {name: Hamburg, lat: 53.551, lon: 9.993, radius_m: 14000}
+  # Stuttgart sits in a valley; 10 km reaches Bad Cannstatt, Feuerbach, Vaihingen and Degerloch.
+  - {name: Stuttgart, lat: 48.776, lon: 9.183, radius_m: 10000}
 
 # Places only: towns of 100,000 or more that Little Outings has no events for yet. Their places
 # are on its map and pages, but the town picker keeps to the towns above. Refreshed by the
@@ -80,9 +82,8 @@ more_towns:
   - {name: Koblenz, lat: 50.356, lon: 7.594}
   - {name: Trier, lat: 49.75, lon: 6.637}
   - {name: Saarbrücken, lat: 49.24, lon: 6.997}
-  # Baden-Württemberg.
-  - {name: Stuttgart, lat: 48.776, lon: 9.183, radius_m: 10000, area: Stuttgart}
-  - {name: Reutlingen, lat: 48.491, lon: 9.205, area: Stuttgart}
+  # Baden-Württemberg (Stuttgart above).
+  - {name: Reutlingen, lat: 48.491, lon: 9.205}
   - {name: Heilbronn, lat: 49.142, lon: 9.219}
   - {name: Karlsruhe, lat: 49.007, lon: 8.404, radius_m: 8000, area: Karlsruhe}
   - {name: Pforzheim, lat: 48.892, lon: 8.694, area: Karlsruhe}

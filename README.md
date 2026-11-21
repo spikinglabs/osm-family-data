@@ -3,7 +3,7 @@
 Family places, public toilets, changing tables, drinking water and car parks from
 [OpenStreetMap](https://www.openstreetmap.org), around the towns that
 [Little Outings](https://outings.allo.land) covers (Cologne, Düsseldorf, Bonn, Aachen and the
-Bergisches Land, Berlin, Munich, Frankfurt and Hamburg), plus places (not toilets) around every
+Bergisches Land, Berlin, Munich, Frankfurt, Hamburg and Stuttgart), plus places (not toilets) around every
 other German city of 100,000 or more, from Dortmund to Dresden. GitHub Actions in this repo fetch them
 from Overpass and write open JSONL files to a public Cloudflare R2 bucket, so sites and apps only
 download a file and never wait on OpenStreetMap.
